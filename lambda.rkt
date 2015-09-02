@@ -8,8 +8,13 @@
 
 (define-datatype Term
   [Var (Name)]
-  [Abs (Name Term)]
+  [Abs (Name Type Term)]
   [App (Term Term)])
+
+(define-datatype Type
+  [Function-Type (Type Type)])
+
+(define-type Typing-Context (Listof (Vector Name Type)))
 
 (define-datatype Nameless-Term
   [Nameless-Var (Index)]
@@ -18,32 +23,30 @@
 
 (: remove-names (-> Context Term Nameless-Term))
 (define (remove-names context term)
+  (: context-find (-> Context Name Index))
+  (define (context-find context name)
+    (vector-ref 
+     (first
+      (filter (lambda ([pair : (Vector Name Index)])
+                (equal? (vector-ref pair 0) name))
+              context))
+     1))
+  (: context-add (-> Context Name Context))
+  (define (context-add context x)
+    (append 
+     (map (lambda ([pair : (Vector Name Index)])
+            (vector (vector-ref pair 0)
+                    (+ (vector-ref pair 1) 1)))
+          context)
+     (list (vector x 0))))
   (match term
     [(Var x)
      (Nameless-Var (context-find context x))]
     [(App t1 t2)
      (Nameless-App (remove-names context t1)
                    (remove-names context t2))]
-    [(Abs x t)
+    [(Abs x _ t)
      (Nameless-Abs (remove-names (context-add context x) t))]))
-
-(: context-find (-> Context Name Index))
-(define (context-find context name)
-  (vector-ref 
-   (first
-    (filter (lambda ([pair : (Vector Name Index)])
-              (equal? (vector-ref pair 0) name))
-            context))
-   1))
-
-(: context-add (-> Context Name Context))
-(define (context-add context x)
-  (append 
-   (map (lambda ([pair : (Vector Name Index)])
-          (vector (vector-ref pair 0)
-                  (+ (vector-ref pair 1) 1)))
-        context)
-   (list (vector x 0))))
 
 (: shift (-> Index Index Nameless-Term Nameless-Term))
 (define (shift d c nameless-term)
@@ -99,4 +102,28 @@
 (define (evaluate t)
   (with-handlers ([exn:fail? (lambda ([e : exn:fail]) t)])
     (evaluate (step t))))
+
+(: type-check (-> Typing-Context Term Type))
+(define (type-check typing-context term)
+  (: typing-context-find (-> Typing-Context Name Type))
+  (define (typing-context-find typing-context name)
+    (vector-ref 
+     (first
+      (filter (lambda ([pair : (Vector Name Type)])
+                (equal? (vector-ref pair 0) name))
+              typing-context))
+     1))
+  (match term
+    [(Abs x t t1)
+     (Function-Type t
+                    (type-check (cons (vector x t) typing-context) t1))] 
+    [(App t1 t2)
+     (let ([type-1 (type-check typing-context t1)]
+           [type-2 (type-check typing-context t2)])
+       (match type-1
+         [(Function-Type type-a type-b) type-b]
+         [_ (error "Type mismatch.")]))]
+    [(Var x) 
+     (typing-context-find typing-context x)]
+    [_ (error "No rule applies.")]))
      
