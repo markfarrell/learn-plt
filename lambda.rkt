@@ -1,5 +1,6 @@
 #lang typed/racket
 
+(require (for-syntax syntax/parse))
 (require datatype)
 
 (define-type Name Symbol)
@@ -126,4 +127,12 @@
     [(Var x) 
      (typing-context-find typing-context x)]
     [_ (error "No rule applies.")]))
+
+(define-syntax (parse stx)
+  (syntax-parse stx
+    [(_ ((~literal lambda) (~var x id) (~var T id))) #''ok] 
+    [(_ (~var x id))  #'(Var 'x)]))
+
+(parse y)
+(parse (lambda x T))
      
