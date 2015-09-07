@@ -1,6 +1,5 @@
 #lang typed/racket
 
-(require (for-syntax syntax/parse))
 (require datatype)
 
 (define-type Name Symbol)
@@ -78,15 +77,14 @@
     [(Nameless-App t1 t2)
      (Nameless-App (substitute s j t1)
                    (substitute s j t2))]))
-
-(: is-value? (-> Nameless-Term Boolean))
-(define (is-value? t)
-  (match t
-    [(Nameless-Abs _) true]
-    [_ false]))
     
 (: step (-> Nameless-Term Nameless-Term))
 (define (step t)
+  (: is-value? (-> Nameless-Term Boolean))
+  (define (is-value? t)
+    (match t
+      [(Nameless-Abs _) true]
+      [_ false]))
   (match t
     [(Nameless-App (Nameless-Abs t12)
                    (? is-value? v2))
@@ -127,12 +125,3 @@
     [(Var x) 
      (typing-context-find typing-context x)]
     [_ (error "No rule applies.")]))
-
-(define-syntax (parse stx)
-  (syntax-parse stx
-    [(_ ((~literal lambda) (~var x id) (~var T id))) #''ok] 
-    [(_ (~var x id))  #'(Var 'x)]))
-
-(parse y)
-(parse (lambda x T))
-     

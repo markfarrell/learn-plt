@@ -15,10 +15,40 @@
   [Nat ()]
   [Bool ()])
 
+(: step (-> Term Term))
+(define (step term)
+  (match term 
+    [(If-Then-Else t1 t2 t3)
+     (match t1
+       [(True-Term) t2]
+       [(False-Term) t3]
+       [_ (If-Then-Else (step t1) t2 t3)])]
+    [(Succ t1)
+     (Succ (step t1))]
+    [(Pred t1)
+     (match t1
+       [(Zero-Term) 
+        (Zero-Term)]
+       [(Succ t2) t2]
+       [_ (Pred (step t1))])]
+    [(Is-Zero t1)
+     (match t1
+       [(Succ _)
+        (False-Term)]
+       [(Zero-Term)
+        (True-Term)]
+       [_ (Is-Zero (step t1))])]
+    [_ (error "No rule applies.")]))
+
+(: evaluate (-> Term Term))
+(define (evaluate term)
+  (with-handlers ([exn:fail? (lambda ([e : exn:fail]) term)])
+    (evaluate (step term))))
+
 (: type-check (-> Term Type))
 (define (type-check term)
-  (match term 
-    [(True-Term) 
+  (match term
+    [(True-Term)
      (Bool)]
     [(False-Term) 
      (Bool)]
@@ -40,14 +70,11 @@
     [(Pred n)
      (match (type-check n)
        [(Nat)
-        (Nat)])]
+        (Nat)]
+       [_ (error "Type mismatch.")])]
     [(Is-Zero n)
      (match (type-check n)
        [(Nat)
         (Bool)]
        [_ (error "Type mismatch.")])]
     [_ (error "No rule applies.")]))
-
-;; (check-equal? (type-check (True-Term)) (Bool))
-;; (check-equal? (type-check (False-Term)) (Bool))
-;; (check-equal? (type-check (If-Then-Else (True-Term) (True-Term) (False-Term))) (Bool))
