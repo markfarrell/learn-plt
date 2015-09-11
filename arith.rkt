@@ -17,7 +17,7 @@
 
 (: step (-> Term Term))
 (define (step term)
-  (match term 
+  (match term
     [(If-Then-Else t1 t2 t3)
      (match t1
        [(True-Term) t2]
@@ -27,7 +27,7 @@
      (Succ (step t1))]
     [(Pred t1)
      (match t1
-       [(Zero-Term) 
+       [(Zero-Term)
         (Zero-Term)]
        [(Succ t2) t2]
        [_ (Pred (step t1))])]
@@ -50,7 +50,7 @@
   (match term
     [(True-Term)
      (Bool)]
-    [(False-Term) 
+    [(False-Term)
      (Bool)]
     [(If-Then-Else t1 t2 t3)
      (let ([type-t1 (type-check t1)]
@@ -60,11 +60,11 @@
                    (equal? type-t2 type-t3))
               type-t2]
              [else (error "Type mismatch.")]))]
-    [(Zero-Term) 
+    [(Zero-Term)
      (Nat)]
     [(Succ n)
      (match (type-check n)
-       [(Nat) 
+       [(Nat)
         (Nat)]
        [_ (error "Type mismatch.")])]
     [(Pred n)

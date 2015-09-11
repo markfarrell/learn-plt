@@ -7,16 +7,21 @@
 (define-type Context (Listof (Vector Name Index)))
 
 (define-datatype Term
+  [Zero-Term ()]
+  [Succ (Term)]
   [Var (Name)]
   [Abs (Name Type Term)]
   [App (Term Term)])
 
 (define-datatype Type
+  [Nat ()]
   [Function-Type (Type Type)])
 
 (define-type Typing-Context (Listof (Vector Name Type)))
 
 (define-datatype Nameless-Term
+  [Nameless-Zero-Term ()]
+  [Nameless-Succ (Nameless-Term)]
   [Nameless-Var (Index)]
   [Nameless-Abs (Nameless-Term)]
   [Nameless-App (Nameless-Term Nameless-Term)])
@@ -25,7 +30,7 @@
 (define (remove-names context term)
   (: context-find (-> Context Name Index))
   (define (context-find context name)
-    (vector-ref 
+    (vector-ref
      (first
       (filter (lambda ([pair : (Vector Name Index)])
                 (equal? (vector-ref pair 0) name))
@@ -33,13 +38,17 @@
      1))
   (: context-add (-> Context Name Context))
   (define (context-add context x)
-    (append 
+    (append
      (map (lambda ([pair : (Vector Name Index)])
             (vector (vector-ref pair 0)
                     (+ (vector-ref pair 1) 1)))
           context)
      (list (vector x 0))))
   (match term
+    [(Zero-Term)
+     (Nameless-Zero-Term)]
+    [(Succ n)
+     (Nameless-Succ (remove-names context n))]
     [(Var x)
      (Nameless-Var (context-find context x))]
     [(App t1 t2)
@@ -54,10 +63,10 @@
     [(Nameless-Var k)
      (Nameless-Var
       (cond [(< k c) k]
-            [else 
+            [else
              (+ k d)]))]
     [(Nameless-Abs t1)
-     (Nameless-Abs (shift d 
+     (Nameless-Abs (shift d
                           (+ c 1)
                           t1))]
     [(Nameless-App t1 t2)
@@ -77,18 +86,20 @@
     [(Nameless-App t1 t2)
      (Nameless-App (substitute s j t1)
                    (substitute s j t2))]))
-    
+
 (: step (-> Nameless-Term Nameless-Term))
 (define (step t)
   (: is-value? (-> Nameless-Term Boolean))
   (define (is-value? t)
     (match t
+      [(Zero-Term) true]
+      [(Succ _) true]
       [(Nameless-Abs _) true]
       [_ false]))
   (match t
     [(Nameless-App (Nameless-Abs t12)
                    (? is-value? v2))
-     (shift -1 0 
+     (shift -1 0
             (substitute (shift 1 0 v2) 0 t12))]
     [(Nameless-App (? is-value? v1) t2)
      (Nameless-App v1
@@ -106,22 +117,29 @@
 (define (type-check typing-context term)
   (: typing-context-find (-> Typing-Context Name Type))
   (define (typing-context-find typing-context name)
-    (vector-ref 
+    (vector-ref
      (first
       (filter (lambda ([pair : (Vector Name Type)])
                 (equal? (vector-ref pair 0) name))
               typing-context))
      1))
   (match term
+    [(Zero-Term)
+     (Nat)]
+    [(Succ t1)
+     (match (type-check typing-context t1)
+       [(Nat)
+        (Nat)]
+       [_ (error "Type mismatch.")])]
     [(Abs x t t1)
      (Function-Type t
-                    (type-check (cons (vector x t) typing-context) t1))] 
+                    (type-check (cons (vector x t) typing-context) t1))]
     [(App t1 t2)
      (let ([type-1 (type-check typing-context t1)]
            [type-2 (type-check typing-context t2)])
        (match type-1
          [(Function-Type type-a type-b) type-b]
          [_ (error "Type mismatch.")]))]
-    [(Var x) 
+    [(Var x)
      (typing-context-find typing-context x)]
     [_ (error "No rule applies.")]))
