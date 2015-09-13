@@ -15,7 +15,7 @@
   [Nat ()]
   [Function-Type (Type Type)])
 
-(define-type Typing-Context (Listof (Vector Name Type)))
+(define-type Typing-Context (HashTable Name Type))
 
 (: fresh (-> Name Name))
 (define (fresh x)
@@ -67,14 +67,6 @@
 
 (: type-check (-> Typing-Context Term Type))
 (define (type-check typing-context term)
-  (: typing-context-find (-> Typing-Context Name Type))
-  (define (typing-context-find typing-context name)
-    (vector-ref
-     (first
-      (filter (lambda ([pair : (Vector Name Type)])
-                (equal? (vector-ref pair 0) name))
-              typing-context))
-     1))
   (match term
     [(Zero-Term)
      (Nat)]
@@ -85,7 +77,7 @@
        [_ (error "Type mismatch.")])]
     [(Abs x t t1)
      (Function-Type t
-                    (type-check (cons (vector x t) typing-context) t1))]
+                    (type-check (hash-set typing-context x t) t1))]
     [(App t1 t2)
      (let ([type-1 (type-check typing-context t1)]
            [type-2 (type-check typing-context t2)])
@@ -93,5 +85,5 @@
          [(Function-Type type-a type-b) type-b]
          [_ (error "Type mismatch.")]))]
     [(Var x)
-     (typing-context-find typing-context x)]
+     (hash-ref typing-context x)]
     [_ (error "No rule applies.")]))
