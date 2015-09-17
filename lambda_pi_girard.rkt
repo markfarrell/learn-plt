@@ -13,10 +13,6 @@
 
 (define-type Typing-Context (HashTable Name Term))
 
-(: fresh (-> Name Name))
-(define (fresh x)
-  (gensym x))
-
 (: substitute (-> Term Name Term Term))
 (define (substitute s x t)
   (match t
@@ -27,7 +23,7 @@
      (cond [(eq? x y)
             (Lam y T1 t1)]
            [else
-            (let ([z (fresh y)])
+            (let ([z (gensym y)])
               (Lam z T1 (substitute s x
                                    (substitute (Var z) y t1))))])]
     [(App t1 t2)
@@ -37,7 +33,7 @@
      (cond [(eq? x y)
             (Pi y T1 T2)]
            [else
-            (let ([z (fresh y)])
+            (let ([z (gensym y)])
               (Pi z T1 (substitute s x
                                    (substitute (Var z) y T2))))])]
     [(Type-0)
@@ -47,7 +43,7 @@
 (: type-check (-> Typing-Context Term Term))
 (define (type-check context term)
   (match term
-    [(Var x) 
+    [(Var x)
      (hash-ref context x)]
     [(Lam x T1 t1)
      (let ([T2 (type-check (hash-set context x T1) t1)]
