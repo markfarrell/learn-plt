@@ -131,9 +131,9 @@
                        (quasisyntax (Let-Term 'x 
                                               (unsyntax (syntax->datum (parse (syntax (term t1)))))
                                               (unsyntax (syntax->datum (parse (syntax (term t2)))))))]
-                      [(_ (type ([x:id T:id]) t1))
+                      [(_ (type ([x:id T:id]) t1)) ;; todo: support function type
                        (quasisyntax (Let-Type 'x 
-                                              (T)
+                                              (T) 
                                               (unsyntax (syntax->datum (parse (syntax (term t1)))))))]
                       [(_ x:id)
                        (syntax (Var 'x))]
