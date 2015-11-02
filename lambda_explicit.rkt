@@ -134,7 +134,7 @@
                       [(_ (type ([x:id T:id]) t1))
                        (quasisyntax (Let-Type 'x 
                                               (T)
-                                              (unsytax (syntax->datum (parse (syntax (term t1)))))))]
+                                              (unsyntax (syntax->datum (parse (syntax (term t1)))))))]
                       [(_ x:id)
                        (syntax (Var 'x))]
                       [(_ (t1 t2))
