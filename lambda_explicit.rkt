@@ -56,7 +56,8 @@
 (define (is-value? t)
   (match t
     [(Zero-Term) true]
-    [(Succ _) true]
+    [(Succ e) 
+     (is-value? e)]
     [(Lam _ _ _) true]
     [_ false]))
 
@@ -123,17 +124,21 @@
                        (syntax (Zero-Term))]
                       [(_ ((~literal S) n:id))
                        (quasisyntax (Succ (unsyntax (syntax->datum (parse (syntax (term n)))))))]
-                      [(_ (lambda ((~literal :) x:id T:id) t1))
-                       (quasisyntax (Lam 'x 
-                                         (T) 
+                      [(_ (~literal N))
+                       (syntax (Nat))]
+                      [(_ ((~literal ->) T1 T2))
+                       (quasisyntax (Function-Type (unsyntax (syntax->datum (parse (syntax (term T1)))))
+                                                   (unsyntax (syntax->datum (parse (syntax (term T2)))))))]
+                      [(_ (lambda ((~literal :) x:id T) t1))
+                       (quasisyntax (Lam 'x T 
                                          (unsyntax (syntax->datum (parse (syntax (term t1)))))))]
                       [(_ (let ([x:id t1]) t2))
                        (quasisyntax (Let-Term 'x 
                                               (unsyntax (syntax->datum (parse (syntax (term t1)))))
                                               (unsyntax (syntax->datum (parse (syntax (term t2)))))))]
-                      [(_ (type ([x:id T:id]) t1)) ;; todo: support function type
+                      [(_ ((~literal :) x:id T1) t1)
                        (quasisyntax (Let-Type 'x 
-                                              (T) 
+                                              (unsyntax (syntax->datum (parse (syntax (term T1))))) 
                                               (unsyntax (syntax->datum (parse (syntax (term t1)))))))]
                       [(_ x:id)
                        (syntax (Var 'x))]
