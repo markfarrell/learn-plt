@@ -28,8 +28,8 @@
      (Bool)]
     [(Var x)
      (hash-ref typing-context x)]
-    [(Ann x t)
-     (type-check typing-context term t)]
+    [(Ann t ty)
+     (type-check typing-context t ty)]
     [(App t1 t2)
      (match (type-infer typing-context t1)
        [(Function-Type ty1 ty2)
@@ -41,7 +41,7 @@
 (define (type-check typing-context term ty)
   (match term
     [(If-Then-Else t1 t2 t3)
-     (let ([ty1 (type-check typing-context t1 ty)]
+     (let ([ty1 (type-check typing-context t1 (Bool))]
            [ty2 (type-check typing-context t2 ty)]
            [ty3 (type-check typing-context t3 ty)])
        (cond [(and (equal? ty1 (Bool))
@@ -52,6 +52,18 @@
     [(Lam x t)
      (match ty
        [(Function-Type ty1 ty2)
-        (type-check (hash-set typing-context x ty1) t ty2)]
+        (Function-Type ty1 
+                       (type-check (hash-set typing-context x ty1) t ty2))]
        [_ (error "Type mismatch.")])]
-    [_ (error "No rule applies.")]))
+    [_ (cond [(equal? (type-infer typing-context term) ty) ty]
+             [else (error "No rule applies.")])]))
+
+(type-check (make-immutable-hash)
+            (Ann (Lam 'x 
+                      (If-Then-Else (Var 'x)
+                                    (False-Term)
+                                    (True-Term))) 
+                 (Function-Type (Bool)
+                                (Bool)))
+            (Function-Type (Bool)
+                           (Bool)))
