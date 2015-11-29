@@ -19,6 +19,8 @@
 
 (define-type Typing-Context (HashTable Name Type))
 
+;; Statics
+
 (: type-infer (-> Typing-Context Term Type))
 (define (type-infer typing-context term)
   (match term
@@ -67,3 +69,55 @@
                                 (Bool)))
             (Function-Type (Bool)
                            (Bool)))
+
+;; Dynamics
+
+(: substitute (-> Term Name Term Term))
+(define (substitute s x t)
+  (match t
+    [(Var y)
+     (cond [(eq? x y) s]
+           [else (Var y)])]
+    [(Lam y t1)
+     (cond [(eq? x y)
+            (Lam y t1)]
+           [else
+            (let ([z (gensym y)])
+              (Lam z 
+                   (substitute s x
+                               (substitute (Var z) y t1))))])]
+    [(App t1 t2)
+     (App (substitute s x t1)
+          (substitute s x t2))]
+    [_ (error "No rule applies.")]))
+
+(: is-value? (-> Term Boolean))
+(define (is-value? t)
+  (match t
+    [(True-Term) true]
+    [(False-Term) true]
+    [(Lam _ _) true]
+    [_ false]))
+
+(: small-step (-> Term Term))
+(define (small-step t)
+  (match t
+    [(If-Then-Else t1 t2 t3)
+     (match t1
+       [(True-Term) t2]
+       [(False-Term) t3]
+       [_ (If-Then-Else (small-step t1) t2 t3)])]
+    [(App (Lam x t12)
+          (? is-value? v2))
+     (substitute v2 x t12)]
+    [(App (? is-value? v1) t2)
+     (App v1
+          (small-step t2))]
+    [(App t1 t2)
+     (App (small-step t1) t2)]
+    [_ (error "No rule applies.")]))
+
+(: evaluate (-> Term Term))
+(define (evaluate t)
+  (with-handlers ([exn:fail? (lambda ([e : exn:fail]) t)])
+    (evaluate (small-step t))))
