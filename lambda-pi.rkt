@@ -3,13 +3,14 @@
 (require datatype)
 
 (define-type Name Symbol)
+(define-type Index Nonnegative-Integer)
 
 (define-datatype Term
   [Var (Name)]
   [Lam (Name Term Term)]
   [App (Term Term)]
   [Pi  (Name Term Term)]
-  [Type-0 ()])
+  [Type (Index)])
 
 (define-type Typing-Context (HashTable Name Term))
 
@@ -36,25 +37,25 @@
             (let ([z (gensym y)])
               (Pi z T1 (substitute s x
                                    (substitute (Var z) y T2))))])]
-    [(Type-0)
-     (Type-0)]
+    [(Type i)
+     (Type i)]
     [_ (error "No rule applies.")]))
 
-(: type-check (-> Typing-Context Term Term))
-(define (type-check context term)
+(: type-infer (-> Typing-Context Term Term))
+(define (type-infer context term)
   (match term
     [(Var x)
      (hash-ref context x)]
     [(Lam x T1 t1)
-     (let ([T2 (type-check (hash-set context x T1) t1)]
-           [T1-type (type-check context T1)])
+     (let ([T2 (type-infer (hash-set context x T1) t1)]
+           [T1-type (type-infer context T1)])
        (match T1-type
-         [(Type-0)
+         [(Type _)
           (Pi x T1 T2)]
          [_ (error "Type mismatch.")]))]
     [(App t1 t2)
-     (let ([t1-type (type-check context t1)]
-           [t2-type (type-check context t2)])
+     (let ([t1-type (type-infer context t1)]
+           [t2-type (type-infer context t2)])
        (match t1-type
          [(Pi x T1 T2)
           (cond [(equal? t2-type T1)
@@ -62,15 +63,15 @@
                 [else
                  (error "Type mismatch.")])]))]
     [(Pi x T1 T2)
-     (let ([T1-type (type-check context T1)]
-           [T2-type (type-check (hash-set context x T1) T2)])
+     (let ([T1-type (type-infer context T1)]
+           [T2-type (type-infer (hash-set context x T1) T2)])
        (match T1-type
-         [(Type-0)
+         [(Type i)
           (match T2-type
-            [(Type-0)
-             (Type-0)]
+            [(Type j)
+             (Type (min i j))]
             [_ (error "Type mismatch.")])]
          [_ (error "Type mismatch.")]))]
-    [(Type-0)
-     (Type-0)]
+    [(Type i)
+     (Type (+ i 1))]
     [_ (error "No rule applies.")]))
