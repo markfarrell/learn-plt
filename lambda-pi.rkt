@@ -7,8 +7,9 @@
 
 (define-datatype Term
   [Var (Name)]
-  [Lam (Name Term Term)]
+  [Lam (Name Term)]
   [App (Term Term)]
+  [Ann (Term Term)]
   [Pi  (Name Term Term)]
   [Type (Index)])
 
@@ -20,13 +21,13 @@
     [(Var y)
      (cond [(eq? x y) s]
            [else (Var y)])]
-    [(Lam y T1 t1)
+    [(Lam y t1)
      (cond [(eq? x y)
-            (Lam y T1 t1)]
+            (Lam y t1)]
            [else
             (let ([z (gensym y)])
-              (Lam z T1 (substitute s x
-                                   (substitute (Var z) y t1))))])]
+              (Lam z (substitute s x
+                                 (substitute (Var z) y t1))))])]
     [(App t1 t2)
      (App (substitute s x t1)
           (substitute s x t2))]
@@ -46,32 +47,34 @@
   (match term
     [(Var x)
      (hash-ref context x)]
-    [(Lam x T1 t1)
-     (let ([T2 (type-infer (hash-set context x T1) t1)]
-           [T1-type (type-infer context T1)])
-       (match T1-type
-         [(Type _)
-          (Pi x T1 T2)]
-         [_ (error "Type mismatch.")]))]
     [(App t1 t2)
-     (let ([t1-type (type-infer context t1)]
-           [t2-type (type-infer context t2)])
-       (match t1-type
-         [(Pi x T1 T2)
-          (cond [(equal? t2-type T1)
-                 (substitute t2 x T2)]
-                [else
-                 (error "Type mismatch.")])]))]
-    [(Pi x T1 T2)
-     (let ([T1-type (type-infer context T1)]
-           [T2-type (type-infer (hash-set context x T1) T2)])
-       (match T1-type
-         [(Type i)
-          (match T2-type
-            [(Type j)
-             (Type (min i j))]
-            [_ (error "Type mismatch.")])]
-         [_ (error "Type mismatch.")]))]
+     (match (type-infer context t1)
+       [(Pi x ty1 ty2)
+        (cond [(equal? (type-infer context t2) ty1)
+               (substitute t2 x ty2)]
+              [else
+               (error "Type mismatch.")])])]
+    [(Ann t ty)
+     (type-check context t ty)]
+    [(Pi x ty1 ty2)
+     (match (type-infer context ty1)
+       [(Type i)
+        (match (type-infer (hash-set context x ty1) ty2)
+          [(Type j)
+           (Type (min i j))]
+          [_ (error "Type mismatch.")])]
+       [_ (error "Type mismatch.")])]
     [(Type i)
      (Type (+ i 1))]
     [_ (error "No rule applies.")]))
+
+(: type-check (-> Typing-Context Term Term Term))
+(define (type-check context term ty)
+  (match term
+    [(Lam x t1)
+     (match ty
+       [(Pi x ty1 ty2)
+        (Pi x ty1
+            (type-check (hash-set context x ty1) t1 ty2))])]
+    [_ (cond [(equal? (type-infer context term) ty) ty]
+             [else (error "No rule applies.")])]))
