@@ -6,10 +6,6 @@
 (define-type Index Nonnegative-Integer)
 
 (define-datatype Term
-  [If-Then-Else (Term Term Term)]
-  [True-Term ()]
-  [False-Term ()]
-  [Bool ()]
   [Var (Name)]
   [Lam (Name Term)]
   [App (Term Term)]
@@ -19,19 +15,11 @@
 
 (define-type Typing-Context (HashTable Name Term))
 
+;; Proof Checkers
+
 (: substitute (-> Term Name Term Term))
 (define (substitute s x t)
   (match t
-    [(If-Then-Else t1 t2 t3)
-     (If-Then-Else (substitute s x t1)
-                   (substitute s x t2)
-                   (substitute s x t3))]
-    [(True-Term)
-     (True-Term)]
-    [(False-Term)
-     (False-Term)]
-    [(Bool)
-     (Bool)]
     [(Var y)
      (cond [(eq? x y) s]
            [else (Var y)])]
@@ -59,10 +47,6 @@
 (: type-infer (-> Typing-Context Term Term))
 (define (type-infer context term)
   (match term
-    [(True-Term) 
-     (Bool)]
-    [(False-Term)
-     (Bool)]
     [(Var x)
      (hash-ref context x)]
     [(App t1 t2)
@@ -89,31 +73,63 @@
 (: type-check (-> Typing-Context Term Term Term))
 (define (type-check context term ty)
   (match term
-    [(If-Then-Else t1 t2 t3)
-     (let ([ty1 (type-check context t1 (Bool))]
-           [ty2 (type-check context t2 ty)]
-           [ty3 (type-check context t3 ty)])
-       (cond [(and (equal? ty1 (Bool))
-                   (equal? ty2 ty)
-                   (equal? ty3 ty))
-              ty]
-             [else (error "Type mismatch.")]))]
     [(Lam x t1)
      (match ty
        [(Pi x ty1 ty2)
         (Pi x ty1
-            (type-check (hash-set context x ty1) t1 ty2))])]
+            (type-check (hash-set context x ty1) t1 ty2))]
+       [_ (error "Type mismatch.")])]
     [_ (cond [(equal? (type-infer context term) ty) ty]
              [else (error "No rule applies.")])]))
 
-(type-check (make-immutable-hash)
-            (Ann (Lam 'x 
-                      (If-Then-Else (Var 'x)
-                                    (False-Term)
-                                    (True-Term))) 
-                 (Pi 'x
-                     (Bool)
-                     (Bool)))
-            (Pi 'x
-                (Bool)
-                (Bool)))
+;; Utilities
+
+(: Fun (-> Term Term Term))
+(define (Fun a b)
+  (Pi (gensym) a b))
+
+(: U Term)
+(define U
+  (Type 0))
+
+;; Examples
+
+(define bottom
+  (Ann (Pi 'x U
+           (Var 'x))
+       U))
+
+(define top
+  (Ann (Pi 'x U
+           (Fun (Var 'x)
+                (Var 'x)))
+       U))
+
+(define and
+  (Ann (Lam 'p
+            (Lam 'q
+                 (Pi 'c U
+                     (Fun (Fun (Var 'p)
+                               (Fun (Var 'q)
+                                    (Var 'c)))
+                          (Var 'c)))))
+       (Pi 'p U
+           (Pi 'q U U))))
+
+(define conj
+  (Ann (Lam 'p
+            (Lam 'q
+                 (Lam 'x
+                      (Lam 'y
+                           (Lam 'c
+                                (Lam 'f
+                                     (App (App (Var 'f)
+                                               (Var 'x))
+                                          (Var 'y))))))))
+       (Pi 'p U
+           (Pi 'q U
+               (Fun (Var 'p)
+                    (Fun (Var 'q)
+                         (App (App and
+                                   (Var 'p))
+                              (Var 'q))))))))
